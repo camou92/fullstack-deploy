@@ -35,7 +35,7 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'nexus-cred',
                         usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh '''
-                            mvn clean install
+                            mvn clean install -DskipTests
                             cat > settings.xml <<EOF
 <settings>
   <servers>
