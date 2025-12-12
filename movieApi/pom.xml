@@ -138,12 +138,12 @@
         <repository>
             <id>nexus</id>
             <name>releases</name>
-            <url>http://192.168.43.247:8081/repository/movie-app-release/</url>
+            <url>http://192.168.11.104:8081/repository/movie-app-release/</url>
         </repository>
         <snapshotRepository>
             <id>nexus</id>
             <name>snapshots</name>
-            <url>http://192.168.43.247:8081/repository/movie-app-snapshot/</url>
+            <url>http://192.168.11.104:8081/repository/movie-app-snapshot/</url>
         </snapshotRepository>
     </distributionManagement>
 
