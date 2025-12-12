@@ -6,12 +6,12 @@ pipeline {
     }
 
     environment {
-        NEXUS_MAVEN_REPO = "http://192.168.11.104:8081/repository/spring-web-app-hosted/"
+        NEXUS_HOST = "192.168.11.104:8081"
         DOCKER_REPO = "192.168.11.104:5001"
         BACKEND_IMAGE = "${DOCKER_REPO}/backend-app:latest"
         FRONTEND_IMAGE = "${DOCKER_REPO}/frontend-app:latest"
-        GIT_APP_REPO = "https://github.com/camou92/tpjenkins-spring.git"
-        DOCKER_COMPOSE_DIR = "docker"
+        GIT_APP_REPO = "https://github.com/camou92/fullstack-deploy.git"
+        DOCKER_COMPOSE_DIR = "."
     }
 
     stages {
@@ -31,7 +31,7 @@ pipeline {
 
         stage('Build Backend & Deploy Artifact') {
             steps {
-                dir('backend') {
+                dir('movieApi') {
                     withCredentials([usernamePassword(credentialsId: 'nexus-cred',
                         usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh '''
@@ -56,7 +56,7 @@ EOF
 
         stage('Build Frontend') {
             steps {
-                dir('frontend') {
+                dir('movieUi') {
                     sh '''
                         npm install
                         npm run build --prod
