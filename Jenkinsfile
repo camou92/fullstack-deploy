@@ -71,7 +71,7 @@ EOF
                 withCredentials([usernamePassword(credentialsId: 'nexus-cred',
                     usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        docker build -t ${BACKEND_IMAGE} ./backend
+                        docker build -t ${BACKEND_IMAGE} ./movieApi
                         DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
                         echo "$DOCKER_PASS" | docker login $DOCKER_HOST --username "$DOCKER_USER" --password-stdin
                         docker push ${BACKEND_IMAGE}
@@ -86,7 +86,7 @@ EOF
                 withCredentials([usernamePassword(credentialsId: 'nexus-cred',
                     usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        docker build -t ${FRONTEND_IMAGE} ./frontend
+                        docker build -t ${FRONTEND_IMAGE} ./movieUi
                         DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
                         echo "$DOCKER_PASS" | docker login $DOCKER_HOST --username "$DOCKER_USER" --password-stdin
                         docker push ${FRONTEND_IMAGE}
