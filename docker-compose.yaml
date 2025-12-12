@@ -27,7 +27,7 @@ services:
       - postgres
 
   movie-back:
-    build: ./movieApi
+    image: 192.168.43.247/backend-app:latest"
     container_name: movie-back
     environment:
       - DB_URL=jdbc:postgresql://postgres:5432/movie_app
@@ -40,7 +40,7 @@ services:
       - tempo
 
   movie-front:
-    build: ./movieUi
+    image: 192.168.43.247/frontend-app:latest"
     container_name: movie-front
     ports:
       - "8086:80"
