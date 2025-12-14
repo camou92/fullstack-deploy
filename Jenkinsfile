@@ -48,25 +48,27 @@ pipeline {
                         usernameVariable: 'NEXUS_USER',
                         passwordVariable: 'NEXUS_PASS'
                     )]) {
-                        sh '''#!/bin/bash
-                        set -e
+                        sh '''
+                            #!/bin/bash
+                            set -e
 
-                        echo ">>> Création du settings.xml Nexus"
-                        cat > settings.xml <<'EOF'
-<settings>
-  <servers>
-    <server>
-      <id>nexus</id>
-      <username>${NEXUS_USER}</username>
-      <password>${NEXUS_PASS}</password>
-    </server>
-  </servers>
-</settings>
-EOF
+                            echo ">>> Création du settings.xml Nexus"
 
-                        echo ">>> Build et déploiement Maven"
-                        mvn clean deploy -s settings.xml -DskipTests
-                        '''
+                            cat > settings.xml <<EOF
+                            <settings>
+                              <servers>
+                                <server>
+                                  <id>nexus</id>
+                                  <username>${NEXUS_USER}</username>
+                                  <password>${NEXUS_PASS}</password>
+                                </server>
+                              </servers>
+                            </settings>
+                            EOF
+
+                            echo ">>> Build et déploiement Maven"
+                            mvn clean deploy -s settings.xml -DskipTests
+                        '''.stripIndent()
                     }
                 }
             }
@@ -75,11 +77,12 @@ EOF
         stage('Build Frontend') {
             steps {
                 dir('movieUi') {
-                    sh '''#!/bin/bash
-                    set -e
-                    npm install
-                    npm run build
-                    '''
+                    sh '''
+                        #!/bin/bash
+                        set -e
+                        npm install
+                        npm run build
+                    '''.stripIndent()
                 }
             }
         }
@@ -91,17 +94,18 @@ EOF
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh '''#!/bin/bash
-                    set -e
+                    sh '''
+                        #!/bin/bash
+                        set -e
 
-                    docker build -t ${BACKEND_IMAGE} ./movieApi
+                        docker build -t ${BACKEND_IMAGE} ./movieApi
 
-                    DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
-                    echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
+                        DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
+                        echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
 
-                    docker push ${BACKEND_IMAGE}
-                    docker logout $DOCKER_HOST
-                    '''
+                        docker push ${BACKEND_IMAGE}
+                        docker logout $DOCKER_HOST
+                    '''.stripIndent()
                 }
             }
         }
@@ -113,17 +117,18 @@ EOF
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh '''#!/bin/bash
-                    set -e
+                    sh '''
+                        #!/bin/bash
+                        set -e
 
-                    docker build -t ${FRONTEND_IMAGE} ./movieUi
+                        docker build -t ${FRONTEND_IMAGE} ./movieUi
 
-                    DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
-                    echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
+                        DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
+                        echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
 
-                    docker push ${FRONTEND_IMAGE}
-                    docker logout $DOCKER_HOST
-                    '''
+                        docker push ${FRONTEND_IMAGE}
+                        docker logout $DOCKER_HOST
+                    '''.stripIndent()
                 }
             }
         }
@@ -131,11 +136,12 @@ EOF
         stage('Deploy with Docker Compose') {
             steps {
                 dir("${DOCKER_COMPOSE_DIR}") {
-                    sh '''#!/bin/bash
-                    set -e
-                    docker-compose pull
-                    docker-compose up -d
-                    '''
+                    sh '''
+                        #!/bin/bash
+                        set -e
+                        docker-compose pull
+                        docker-compose up -d
+                    '''.stripIndent()
                 }
             }
         }
