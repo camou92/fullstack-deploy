@@ -177,8 +177,8 @@ docker logout "$DOCKER_HOST"
 #!/bin/bash
 set -e
 
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 '''
                 }
             }
