@@ -7,8 +7,8 @@ pipeline {
     }
 
     environment {
-        NEXUS_HOST = "192.168.11.104:8081"
-        DOCKER_REPO = "192.168.11.104:5001"
+        NEXUS_HOST = "192.168.122.48:8081"
+        DOCKER_REPO = "192.168.122.48:5001"
         BACKEND_IMAGE = "${DOCKER_REPO}/backend-app:latest"
         FRONTEND_IMAGE = "${DOCKER_REPO}/frontend-app:latest"
         GIT_APP_REPO = "https://github.com/camou92/fullstack-deploy.git"
