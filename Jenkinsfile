@@ -24,12 +24,18 @@ pipeline {
 
     stages {
 
+        /* =========================
+           CLEAN
+        ========================== */
         stage('Clean workspace') {
             steps {
                 cleanWs()
             }
         }
 
+        /* =========================
+           CHECKOUT
+        ========================== */
         stage('Checkout App Repo') {
             steps {
                 checkout([
@@ -40,6 +46,9 @@ pipeline {
             }
         }
 
+        /* =========================
+           BACKEND – MAVEN BUILD
+        ========================== */
         stage('Build Backend & Deploy Artifact') {
             steps {
                 dir('movieApi') {
@@ -49,44 +58,56 @@ pipeline {
                         passwordVariable: 'NEXUS_PASS'
                     )]) {
                         sh '''
-                            #!/bin/bash
-                            set -e
+#!/bin/bash
+set -e
 
-                            echo ">>> Création du settings.xml Nexus"
+echo ">>> Création settings.xml Nexus"
+cat > settings.xml <<EOF
+<settings>
+  <servers>
+    <server>
+      <id>nexus</id>
+      <username>${NEXUS_USER}</username>
+      <password>${NEXUS_PASS}</password>
+    </server>
+  </servers>
+</settings>
+EOF
 
-                            cat > settings.xml <<EOF
-                            <settings>
-                              <servers>
-                                <server>
-                                  <id>nexus</id>
-                                  <username>${NEXUS_USER}</username>
-                                  <password>${NEXUS_PASS}</password>
-                                </server>
-                              </servers>
-                            </settings>
-                            EOF
+echo ">>> Build JAR Spring Boot"
+mvn clean package -DskipTests
 
-                            echo ">>> Build et déploiement Maven"
-                            mvn clean deploy -s settings.xml -DskipTests
-                        '''.stripIndent()
+echo ">>> Vérification JAR"
+ls -lh target/*.jar
+
+echo ">>> Déploiement artifact vers Nexus"
+mvn deploy -s settings.xml -DskipTests
+'''
                     }
                 }
             }
         }
 
+        /* =========================
+           FRONTEND – BUILD
+        ========================== */
         stage('Build Frontend') {
             steps {
                 dir('movieUi') {
                     sh '''
-                        #!/bin/bash
-                        set -e
-                        npm install
-                        npm run build
-                    '''.stripIndent()
+#!/bin/bash
+set -e
+
+npm install
+npm run build
+'''
                 }
             }
         }
 
+        /* =========================
+           BACKEND – DOCKER
+        ========================== */
         stage('Build & Push Backend Docker') {
             steps {
                 withCredentials([usernamePassword(
@@ -95,21 +116,29 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        #!/bin/bash
-                        set -e
+#!/bin/bash
+set -e
 
-                        docker build -t ${BACKEND_IMAGE} ./movieApi
+echo ">>> Docker build backend"
+docker build -t ${BACKEND_IMAGE} ./movieApi
 
-                        DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
-                        echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
+DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
 
-                        docker push ${BACKEND_IMAGE}
-                        docker logout $DOCKER_HOST
-                    '''.stripIndent()
+echo ">>> Docker login"
+echo "$DOCKER_PASS" | docker login "$DOCKER_HOST" -u "$DOCKER_USER" --password-stdin
+
+echo ">>> Docker push backend"
+docker push ${BACKEND_IMAGE}
+
+docker logout "$DOCKER_HOST"
+'''
                 }
             }
         }
 
+        /* =========================
+           FRONTEND – DOCKER
+        ========================== */
         stage('Build & Push Frontend Docker') {
             steps {
                 withCredentials([usernamePassword(
@@ -118,35 +147,47 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        #!/bin/bash
-                        set -e
+#!/bin/bash
+set -e
 
-                        docker build -t ${FRONTEND_IMAGE} ./movieUi
+echo ">>> Docker build frontend"
+docker build -t ${FRONTEND_IMAGE} ./movieUi
 
-                        DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
-                        echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
+DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
 
-                        docker push ${FRONTEND_IMAGE}
-                        docker logout $DOCKER_HOST
-                    '''.stripIndent()
+echo ">>> Docker login"
+echo "$DOCKER_PASS" | docker login "$DOCKER_HOST" -u "$DOCKER_USER" --password-stdin
+
+echo ">>> Docker push frontend"
+docker push ${FRONTEND_IMAGE}
+
+docker logout "$DOCKER_HOST"
+'''
                 }
             }
         }
 
+        /* =========================
+           DEPLOY
+        ========================== */
         stage('Deploy with Docker Compose') {
             steps {
                 dir("${DOCKER_COMPOSE_DIR}") {
                     sh '''
-                        #!/bin/bash
-                        set -e
-                        docker-compose pull
-                        docker-compose up -d
-                    '''.stripIndent()
+#!/bin/bash
+set -e
+
+docker-compose pull
+docker-compose up -d
+'''
                 }
             }
         }
     }
 
+    /* =========================
+       POST
+    ========================== */
     post {
         success {
             slackSend(
