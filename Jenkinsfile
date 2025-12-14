@@ -97,7 +97,6 @@ mvn deploy -s settings.xml -DskipTests
                     sh '''
 #!/bin/bash
 set -e
-
 npm install
 npm run build
 '''
@@ -173,13 +172,31 @@ docker logout "$DOCKER_HOST"
         stage('Deploy with Docker Compose') {
             steps {
                 dir("${DOCKER_COMPOSE_DIR}") {
-                    sh '''
+                    withCredentials([usernamePassword(
+                        credentialsId: 'nexus-cred',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh '''
 #!/bin/bash
 set -e
 
+# Connexion au registry privé
+echo ">>> Docker login au registry privé"
+echo "$DOCKER_PASS" | docker login 192.168.122.48:5001 --username "$DOCKER_USER" --password-stdin
+
+# Pull des images backend/frontend et des services
+echo ">>> Docker Compose pull"
 docker compose pull
+
+# Démarrage des services
+echo ">>> Docker Compose up -d"
 docker compose up -d
+
+# Logout du registry privé
+docker logout 192.168.122.48:5001
 '''
+                    }
                 }
             }
         }
