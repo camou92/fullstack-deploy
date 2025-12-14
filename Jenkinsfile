@@ -24,23 +24,19 @@ pipeline {
 
     stages {
 
-        stage('Clean workspace') {
+        stage('Clean Workspace') {
             steps {
                 cleanWs()
             }
         }
 
-        stage('Checkout App Repo') {
+        stage('Checkout Source Code') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[url: "${GIT_APP_REPO}"]]
-                ])
+                git branch: 'main', url: "${GIT_APP_REPO}"
             }
         }
 
-        stage('Build Backend & Deploy Artifact') {
+        stage('Build Backend & Deploy Nexus') {
             steps {
                 dir('movieApi') {
                     withCredentials([usernamePassword(
@@ -49,26 +45,25 @@ pipeline {
                         passwordVariable: 'NEXUS_PASS'
                     )]) {
                         sh '''
-                            #!/bin/bash
-                            set -e
+#!/bin/bash
+set -e
 
-                            echo ">>> Création du settings.xml Nexus"
+echo ">>> Génération settings.xml"
+cat > settings.xml <<EOF
+<settings>
+  <servers>
+    <server>
+      <id>nexus</id>
+      <username>${NEXUS_USER}</username>
+      <password>${NEXUS_PASS}</password>
+    </server>
+  </servers>
+</settings>
+EOF
 
-                            cat > settings.xml <<EOF
-                            <settings>
-                              <servers>
-                                <server>
-                                  <id>nexus</id>
-                                  <username>${NEXUS_USER}</username>
-                                  <password>${NEXUS_PASS}</password>
-                                </server>
-                              </servers>
-                            </settings>
-                            EOF
-
-                            echo ">>> Build et déploiement Maven"
-                            mvn clean deploy -s settings.xml -DskipTests
-                        '''.stripIndent()
+echo ">>> Build et déploiement Maven"
+mvn clean deploy -s settings.xml -DskipTests
+'''
                     }
                 }
             }
@@ -78,16 +73,20 @@ pipeline {
             steps {
                 dir('movieUi') {
                     sh '''
-                        #!/bin/bash
-                        set -e
-                        npm install
-                        npm run build
-                    '''.stripIndent()
+#!/bin/bash
+set -e
+
+echo ">>> Installation dépendances frontend"
+npm install
+
+echo ">>> Build frontend"
+npm run build
+'''
                 }
             }
         }
 
-        stage('Build & Push Backend Docker') {
+        stage('Build & Push Backend Docker Image') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'nexus-cred',
@@ -95,22 +94,25 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        #!/bin/bash
-                        set -e
+#!/bin/bash
+set -e
 
-                        docker build -t ${BACKEND_IMAGE} ./movieApi
+echo ">>> Build image backend"
+docker build -t ${BACKEND_IMAGE} ./movieApi
 
-                        DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
-                        echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
+DOCKER_HOST=$(echo ${BACKEND_IMAGE} | cut -d/ -f1)
 
-                        docker push ${BACKEND_IMAGE}
-                        docker logout $DOCKER_HOST
-                    '''.stripIndent()
+echo ">>> Login Docker registry"
+echo "$DOCKER_PASS" | docker login "$DOCKER_HOST" -u "$DOCKER_USER" --password-stdin
+
+docker push ${BACKEND_IMAGE}
+docker logout "$DOCKER_HOST"
+'''
                 }
             }
         }
 
-        stage('Build & Push Frontend Docker') {
+        stage('Build & Push Frontend Docker Image') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'nexus-cred',
@@ -118,17 +120,20 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                        #!/bin/bash
-                        set -e
+#!/bin/bash
+set -e
 
-                        docker build -t ${FRONTEND_IMAGE} ./movieUi
+echo ">>> Build image frontend"
+docker build -t ${FRONTEND_IMAGE} ./movieUi
 
-                        DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
-                        echo "$DOCKER_PASS" | docker login $DOCKER_HOST -u "$DOCKER_USER" --password-stdin
+DOCKER_HOST=$(echo ${FRONTEND_IMAGE} | cut -d/ -f1)
 
-                        docker push ${FRONTEND_IMAGE}
-                        docker logout $DOCKER_HOST
-                    '''.stripIndent()
+echo ">>> Login Docker registry"
+echo "$DOCKER_PASS" | docker login "$DOCKER_HOST" -u "$DOCKER_USER" --password-stdin
+
+docker push ${FRONTEND_IMAGE}
+docker logout "$DOCKER_HOST"
+'''
                 }
             }
         }
@@ -137,11 +142,13 @@ pipeline {
             steps {
                 dir("${DOCKER_COMPOSE_DIR}") {
                     sh '''
-                        #!/bin/bash
-                        set -e
-                        docker-compose pull
-                        docker-compose up -d
-                    '''.stripIndent()
+#!/bin/bash
+set -e
+
+echo ">>> Déploiement Docker Compose"
+docker-compose pull
+docker-compose up -d
+'''
                 }
             }
         }
@@ -149,18 +156,10 @@ pipeline {
 
     post {
         success {
-            slackSend(
-                channel: '#tous-camoutech',
-                color: '#36a64f',
-                message: "🎉 SUCCESS — Backend, Frontend et images Docker déployés 🚀"
-            )
+            echo "🎉 Pipeline exécuté avec succès"
         }
         failure {
-            slackSend(
-                channel: '#tous-camoutech',
-                color: '#ff0000',
-                message: "❌ ECHEC — Vérifier les logs Jenkins ⚠️"
-            )
+            echo "❌ Pipeline en échec – vérifier les logs"
         }
         always {
             cleanWs()
